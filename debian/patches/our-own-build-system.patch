@@ -32,7 +32,7 @@ new file mode 100644
 index 0000000..cf05093
 --- /dev/null
 +++ b/Makefile
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,65 @@
 +export SCALAC=scalac
 +export JAVAC=javac
 +export MKDIR_P=mkdir -p
@@ -41,7 +41,6 @@ index 0000000..cf05093
 +export INSTALL=install -D -m 644
 +
 +# Figure this out as well as other dependencies
-+export SCALA_LIBRARY=/usr/share/java/scala-library-2.9.2.jar
 +
 +# DESTDIR
 +ifndef PREFIX

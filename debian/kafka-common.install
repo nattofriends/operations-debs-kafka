@@ -18,9 +18,6 @@ debian/lib/paranamer-generator-2.2.jar usr/share/kafka/lib
 debian/lib/paranamer-2.1.jar usr/share/kafka/lib
 debian/lib/pig-0.8.0.jar usr/share/kafka/lib
 debian/lib/piggybank-0.12.0.jar usr/share/kafka/lib
-debian/lib/scala-library-2.11.8.jar usr/share/kafka/lib
-debian/lib/scala-parser-combinators_2.11-1.0.4.jar usr/share/kafka/lib
-debian/lib/scalatest-1.2.jar usr/share/kafka/lib
 debian/lib/slf4j-api-1.7.6.jar usr/share/kafka/lib
 debian/lib/slf4j-simple-1.7.6.jar usr/share/kafka/lib
 debian/lib/snappy-java-1.1.2.6.jar usr/share/kafka/lib

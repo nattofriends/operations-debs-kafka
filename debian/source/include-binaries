@@ -20,9 +20,6 @@ debian/lib/paranamer-generator-2.2.jar
 debian/lib/paranamer-2.1.jar
 debian/lib/pig-0.8.0.jar
 debian/lib/piggybank-0.12.0.jar
-debian/lib/scala-library-2.11.8.jar
-debian/lib/scala-parser-combinators_2.11-1.0.4.jar
-debian/lib/scalatest-1.2.jar
 debian/lib/slf4j-api-1.7.6.jar
 debian/lib/slf4j-simple-1.7.6.jar
 debian/lib/snappy-java-1.1.2.6.jar
