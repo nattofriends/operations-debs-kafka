@@ -1,0 +1,49 @@
+# whether to allow init.d script to start a Kafka MirrorMaker daemon ("yes", "no")
+KAFKA_MIRROR_START=no
+
+# User and group to run as
+KAFKA_USER=kafka
+KAFKA_GROUP=kafka
+KAFKA_CONFIG=/etc/kafka
+
+# The default JMX_PORT for Kafka MirrorMaker is 9993.
+# Set JMX_PORT to something else to override this.
+#JMX_PORT=9993
+
+#KAFKA_JMX_OPTS=${KAFKA_JMX_OPTS:="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"}
+
+# Memory sizes, and logging configuration
+#KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:$KAFKA_CONFIG/log4j.properties"
+
+# Default GC settings.
+#KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSScavengeBeforeRemark -XX:+DisableExplicitGC"
+# LinkedIn recommended GC settings.  See: https://kafka.apache.org/081/ops.html
+# You need Java 7 u51 or greater to use the G1 GC.
+#KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:PermSize=48m -XX:MaxPermSize=48m -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35"
+
+#KAFKA_HEAP_OPTS="-Xmx512M -Xms512M"
+#KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:${KAFKA_CONFIG}/log4j.properties"
+#KAFKA_OPTS=""
+
+#
+# MirrorMaker options:
+#
+
+# Set this to a space separated list of consumer.properties files.
+# Shell wildcards will either be expanded by the init.d script or
+# the bin/kafka shell wrapper.
+KAFKA_MIRROR_CONSUMER_CONFIGS=/etc/kafka/mirror/consumer*.properties
+KAFKA_MIRROR_PRODUCER_CONFIG=/etc/kafka/mirror/producer.properties
+
+# The following options are only used by the init.d script, and
+# are ignored if you are using systemd.  If using systemd and you need
+# to override these, create your own systemd unit file in /etc/systemd/system
+# that passes these as opts directly to the Serivce ExecStart
+
+# Only set one of the following.
+#KAFKA_MIRROR_WHITELIST='.*'
+#KAFKA_MIRROR_BLACKLIST=''
+
+#KAFKA_MIRROR_NUM_STREAMS=1
+#KAFKA_MIRROR_NUM_PRODUCERS=1
+#KAFKA_MIRROR_QUEUE_SIZE=10000
