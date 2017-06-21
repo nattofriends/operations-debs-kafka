@@ -6,6 +6,9 @@ for this is to satisfy debian policy that no internet connection should
 be required during package building as well as security concers about
 the downloaded JAR files by sbt
 
+There is some support for building gradle-based projects with gradle-debian-helper,
+but we are not using it yet.
+
 How to build this package
 -------------------------
 
@@ -26,9 +29,7 @@ you from installing the dependencies manually
 
 * Create a cowbuilder environment
 
-  $ sudo DIST=jessie git-pbuilder create
-  
-* Install scala 2.10 or 2.11 from scala-lang.org inside the buildroot (jessie comes with 2.9, which is too old). This is left as an exercise to the reader.
+  $ sudo DIST=stretch git-pbuilder create
 
 * Clone the repo
 
@@ -37,11 +38,7 @@ you from installing the dependencies manually
 
 * Build
 
-  $ DIST=jessie git-buildpackage -us -uc
-
-or if you dont want to use git-pbuilder:
-
-  $ git-buildpackage -us -uc --git-builder=debuild
+  $ DIST=stretch gbp buildpackage
 
 * Grab your packages from the directory above the one your are in, unless
 you have configured pbuilder otherwise
@@ -82,58 +79,25 @@ do this and avoid doing too much work is:
 This works because all of our changes are in debian/ so in any kind of
 conflict the newer version from upstream should be used
 
+You may otherwise choose to blow away our history:
+
+  $ git reset --hard upstream/<VERSION>
+  $ git checkout <OLDMASTER> -- debian/
+
 * Add a new debian/changelog entry
 
   $ dch -i (don't forget to commit)
+  
+* Update other version numbers
+  
+  - In debian/rules
+  - In debian/kafka-common.links
+
+* Fix library dependencies
+
+  - Add or remove packaged libraries in debian/control, debian/rules,
+    and debian/bin/kafka
+  - Add or remmove bundled libraries in debian/rules, debian/kafka-common.install,
+    debian/source/include-binaries, and debian/lib
 
 * And build as above
-
-* Solve any problems that might arise and repeat the build
-
-* Should you be happy with the result, rebuild with a new debian tag.
-Just add the --git-tag argument on the previous command and a new
-debian/<VERSION>-revision should be present.
-
-* Push :-). git review might not be your best friend in this btw
-Don't forget to push your new tag
-
-* NOTE: Do not push new branches either upstream or yours unless you really
-know what you are doing
-
-Build trunk
------------
-
-The above procedure also works for building from trunk with a few
-changes:
-
-* You will have to come up with a <VERSION> to put in the changelog
-
-* <commit-ish> == trunk
-
-* Instead of
-
-  $ git checkout master
-  $ git merge upstream/<VERSION>
-
-you do a:
-
-  $ git checkout trunk (it should be linked to kafka/trunk)
-  $ git checkout master
-  $ git merge trunk
-
-* The build is going to be a bit different since we now base it on a branch
-and not a tag:
-
-  $ DIST=precise git-buildpackage -us -uc --git-upstream-tree=branch \
---git-upstream-branch=trunk
-
-* You will probably need to solve various issues. Some might be changed
-files in trunk that have other versions in master, files that might need
-to be deleted/altered by the debian package or a variety of other
-issues. The kafka source tree is not the fairest of them all.
-Hints that might help:
-
-git checkout trunk -- <path> might come in handy
-debian/patches will also need changes
-
-but you will need your good sense in most cases
