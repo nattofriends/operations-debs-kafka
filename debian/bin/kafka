@@ -1,0 +1,398 @@
+#!/bin/sh
+
+# kafka
+#
+# Wrapper script for Kafka executable classes.
+# This script is a single replacement for the
+# shell scripts shipped with Kafka source bin/
+# directory.
+#
+
+SCRIPT_NAME=$(basename "$0")
+KAFKA_CONFIG=${KAFKA_CONFIG:-/etc/kafka}
+LOG_DIR=${LOG_DIR:-/var/log/kafka}
+SYS_CLASSDIR=${SYS_CLASSDIR:-/usr/share/java}
+KAFKA_CLASSDIR=${KAFKA_CLASSDIR:-/usr/share/kafka}
+
+# Set ZOOKEEPER_OPT if ZOOKEEPER_URL is set and --zookeeper has not
+# also been passed in as a CLI arg.  This will be included
+# in command functions that take a --zookeeper argument.
+if [ -n "${ZOOKEEPER_URL}" -a -z "$(echo $@ | grep -- --zookeeper)" ]; then
+    ZOOKEEPER_OPT="--zookeeper ${ZOOKEEPER_URL}"
+fi
+
+# Set BROKER_LIST_OPT if BROKER_LIST is set and --broker-list has not
+# also been passed in as a CLI arg.  This will be included
+# in command functions that take a --broker-list argument.
+if [ -n "${BROKER_LIST}" -a -z "$(echo $@ | grep -- --broker-list)" ]; then
+    BROKER_LIST_OPT="--broker-list ${BROKER_LIST}"
+fi
+
+
+USAGE="Usage:
+
+$SCRIPT_NAME <command> [opts]
+Run $SCRIPT_NAME <command> with zero arguments/options to see command usage.
+
+Commands:
+  $SCRIPT_NAME topic                      [opts]
+
+  $SCRIPT_NAME console-producer           [opts]
+  $SCRIPT_NAME console-consumer           [opts]
+  $SCRIPT_NAME simple-consumer-shell      [opts]
+  $SCRIPT_NAME replay-log-producer        [opts]
+
+  $SCRIPT_NAME mirror-maker               [--consumer.configs <consumer.*.properties>] [opts]
+  $SCRIPT_NAME consumer-offset-checker    [opts]
+
+  $SCRIPT_NAME reassign-partitions        [opts]
+  $SCRIPT_NAME preferred-replica-election [opts]
+  $SCRIPT_NAME replica-verification-tool  [opts]
+
+  $SCRIPT_NAME producer-perf-test         [opts]
+  $SCRIPT_NAME consumer-perf-test         [opts]
+  $SCRIPT_NAME simple-consumer-perf-test  [opts]
+
+  $SCRIPT_NAME server-start               [-daemon] <server.properties> (Default: $KAFKA_CONFIG/server.properties)
+  $SCRIPT_NAME server-stop
+
+  $SCRIPT_NAME zookeeper-start            [-daemon] <zookeeper.properties> (Default: $KAFKA_CONFIG/zookeeper.properties)
+  $SCRIPT_NAME zookeeper-stop
+  $SCRIPT_NAME zookeeper-shell            [opts]
+
+Environment Variables:
+  ZOOKEEPER_URL              - If this is set, any commands that take a --zookeeper flag will be passed with this value.
+  BROKER_LIST                - If this is set, any commands that take a --broker-list flag will be passed with this value.
+  KAFKA_CONFIG               - location of Kafka config files.  Default: /etc/kafka
+  JMX_PORT                   - Set this to expose JMX.  This is set by default for brokers and producers.
+  KAFKA_JVM_PERFORMANCE_OPTS - Any special JVM perfomance options.  This is set by default.
+  KAFKA_HEAP_OPTS            - Any special JVM memory heap options.  This is set by default.
+  KAFKA_LOG4J_OPTS           - Any log4j options.  Especially -Dlog4j.configuration.  This is set by default.
+  JAVA_OPTS                  - Any extra JVM options.
+  KAFKA_OPTS                 - Any extra options you want to pass.
+
+Note that $SCRIPT_NAME mirror-maker takes a special --consumer.configs option.
+This option is not passed to the Java CLI.  Instead, it is shell filename
+expanded and each matching file will be given as a --consumer.config option
+to the MirrorMaker Java CLI.
+"
+
+usage() { echo "${USAGE}"; }
+
+
+# Builds CLASSPATH and execs java with appropriate main class
+kafka_run_class() {
+    if [ $# -lt 1 ];
+    then
+      echo "USAGE: $0 [-daemon] [-name servicename] [-loggc] classname [opts]"
+      exit 1
+    fi
+
+    # if these were not yet set (by user or defaults file),
+    # then go ahead and set them.
+    if [ -z "$KAFKA_JMX_OPTS" ]; then
+        KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false  -Dcom.sun.management.jmxremote.ssl=false "
+    fi
+    if [ -n "$JMX_PORT" ]; then
+        KAFKA_JMX_OPTS="$KAFKA_JMX_OPTS -Dcom.sun.management.jmxremote.port=$JMX_PORT "
+    fi
+
+    # Log4j settings
+    if [ -z "$KAFKA_LOG4J_OPTS" ]; then
+        # Use tools-log4j.properties to configure loggers for CLIs.
+        # Zookeeper uses SLF4J simple logger, and is noisy by default, so make
+        # it always WARN level.
+        KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:$KAFKA_CONFIG/tools-log4j.properties -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
+    fi
+
+    if [ -z "$KAFKA_OPTS" ]; then
+        KAFKA_OPTS=""
+    fi
+
+    if [ -z "$JAVA_HOME" ]; then
+        JAVA="java"
+    else
+        JAVA="$JAVA_HOME/bin/java"
+    fi
+
+    # Memory options
+    if [ -z "$KAFKA_HEAP_OPTS" ]; then
+        KAFKA_HEAP_OPTS="-Xmx256M"
+    fi
+
+    # JVM performance options
+    if [ -z "$KAFKA_JVM_PERFORMANCE_OPTS" ]; then
+        KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSScavengeBeforeRemark -XX:+DisableExplicitGC -Djava.awt.headless=true"
+    fi
+
+    # Other Java options
+    if [ -z "$JAVA_OPTS" ]; then
+        JAVA_OPTS=""
+    fi
+
+    while [ $# -gt 0 ]; do
+      COMMAND=$1
+      case $COMMAND in
+        -name)
+          DAEMON_NAME=$2
+          CONSOLE_OUTPUT_FILE=$LOG_DIR/$DAEMON_NAME.out
+          shift 2
+          ;;
+        -loggc)
+          if [ -z "$KAFKA_GC_LOG_OPTS"] ; then
+            GC_LOG_ENABLED="true"
+          fi
+          shift
+          ;;
+        -daemon)
+          DAEMON_MODE="true"
+          shift
+          ;;
+        *)
+          break
+          ;;
+      esac
+    done
+
+    # GC options
+    GC_FILE_SUFFIX='-gc.log'
+    GC_LOG_FILE_NAME=''
+    if [ "x$GC_LOG_ENABLED" = "xtrue" ]; then
+      GC_LOG_FILE_NAME=$DAEMON_NAME$GC_FILE_SUFFIX
+      KAFKA_GC_LOG_OPTS="-Xloggc:$LOG_DIR/$GC_LOG_FILE_NAME -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps "
+    fi
+
+    # Setting the classpath to all the needed dependencies.
+    SYSTEM_JARS=$SYS_CLASSDIR/log4j-1.2.jar:$SYS_CLASSDIR/scala-library.jar:$SYS_CLASSDIR/scala-parser-combinators_2.11.jar:$SYS_CLASSDIR/slf4j-api.jar:$SYS_CLASSDIR/slf4j-simple.jar:$SYS_CLASSDIR/snappy-java.jar:$SYS_CLASSDIR/zookeeper.jar
+    KAFKA_LIB_JARS=$KAFKA_CLASSDIR/lib/jopt-simple-5.0.3.jar:$KAFKA_CLASSDIR/lib/lz4-1.3.0.jar:$KAFKA_CLASSDIR/lib/metrics-core-2.2.0.jar:$KAFKA_CLASSDIR/lib/zkclient-0.10.jar
+    KAFKA_JARS=$KAFKA_CLASSDIR/kafka-clients.jar:$KAFKA_CLASSDIR/kafka.jar
+
+    CLASSPATH=$CLASSPATH:$SYSTEM_JARS:$KAFKA_LIB_JARS:$KAFKA_JARS
+
+    # Launch mode
+    if [ "x$DAEMON_MODE" = "xtrue" ]; then
+      nohup $JAVA $KAFKA_HEAP_OPTS $KAFKA_JVM_PERFORMANCE_OPTS $KAFKA_GC_LOG_OPTS $KAFKA_JMX_OPTS $KAFKA_LOG4J_OPTS $JAVA_OPTS -cp $CLASSPATH $KAFKA_OPTS "$@" > "$CONSOLE_OUTPUT_FILE" 2>&1 < /dev/null &
+    else
+      exec  $JAVA $KAFKA_HEAP_OPTS $KAFKA_JVM_PERFORMANCE_OPTS $KAFKA_GC_LOG_OPTS $KAFKA_JMX_OPTS $KAFKA_LOG4J_OPTS $JAVA_OPTS -cp $CLASSPATH $KAFKA_OPTS "$@"
+    fi
+}
+
+cmd_topic() {
+    kafka_run_class kafka.admin.TopicCommand $ZOOKEEPER_OPT "$@"
+}
+
+cmd_console_producer() {
+    export JMX_PORT="${JMX_PORT:-9990}"
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx512M}"
+    kafka_run_class kafka.tools.ConsoleProducer $BROKER_LIST_OPT "$@"
+}
+
+cmd_console_consumer() {
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx512M}"
+    kafka_run_class kafka.tools.ConsoleConsumer $ZOOKEEPER_OPT "$@"
+}
+
+cmd_simple_consumer_shell() {
+    kafka_run_class kafka.tools.SimpleConsumerShell $BROKER_LIST_OPT "$@"
+}
+
+cmd_consumer_offset_checker() {
+    kafka_run_class kafka.tools.ConsumerOffsetChecker $ZOOKEEPER_OPT "$@"
+}
+
+cmd_replay_log_producer() {
+    export JMX_PORT="${JMX_PORT:-9992}"
+    kafka_run_class kafka.tools.ReplayLogProducer $BROKER_LIST_OPT $ZOOKEEPER_OPT "$@"
+}
+
+cmd_replica_verification_tool() {
+    export JMX_PORT="${JMX_PORT:-9992}"
+    kafka_run_class kafka.tools.ReplicaVerificationTool $BROKER_LIST_OPT "$@"
+}
+
+cmd_mirror_maker() {
+    EXTRA_ARGS="-name kafkaMirror -loggc"
+
+    COMMAND=$1
+    case $COMMAND in
+      -daemon)
+        EXTRA_ARGS="-daemon "$EXTRA_ARGS
+        shift
+        ;;
+      *)
+        ;;
+    esac
+
+    # --consumer.configs is a custom opt for this kafka shell wrapper.
+    # This allows multiple --consumer.config opts to be specified using
+    # a single shell glob instead of multiple opts.
+    while [ $# -gt 0 ]; do
+      case "${1}" in
+          --consumer.configs)
+          # Filename expand $2 and add --consumer.config opt for each file.
+          for consumer_config in $2; do
+              MIRROR_MAKER_ARGS="${MIRROR_MAKER_ARGS} --consumer.config ${consumer_config}"
+          done
+          shift
+          ;;
+      --whitelist|--blacklist)
+          # This opt is a regex.  We need to do special quoting
+          # to make sure we don't accidentally filename expand it.
+          MIRROR_MAKER_ARGS="${MIRROR_MAKER_ARGS} ${1} '${2}'"
+          shift
+          ;;
+      *)
+          MIRROR_MAKER_ARGS="${MIRROR_MAKER_ARGS} ${1}"
+          ;;
+      esac
+      shift
+    done
+
+    export JMX_PORT="${JMX_PORT:-9993}"
+    export KAFKA_LOG4J_OPTS="${KAFKA_LOG4J_OPTS:--Dlog4j.configuration=file:${KAFKA_CONFIG}/mirror/log4j.properties}"
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx1G -Xms1G}"
+    kafka_run_class ${EXTRA_ARGS} kafka.tools.MirrorMaker $MIRROR_MAKER_ARGS
+}
+
+cmd_consumer_offset_checker() {
+    kafka_run_class kafka.tools.ConsumerOffsetChecker $ZOOKEEPER_OPT "$@"
+}
+
+cmd_reassign_partitions() {
+    kafka_run_class kafka.admin.ReassignPartitionsCommand $BROKER_LIST_OPT $ZOOKEEPER_OPT "$@"
+}
+
+cmd_preferred_replica_election() {
+    kafka_run_class kafka.admin.PreferredReplicaLeaderElectionCommand $ZOOKEEPER_OPT "$@"
+}
+
+cmd_producer_perf_test() {
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:-"-Xmx512M"}"
+    kafka_run_class kafka.tools.ProducerPerformance $BROKER_LIST_OPT "$@"
+}
+cmd_consumer_perf_test() {
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:-"-Xmx512M"}"
+    kafka_run_class kafka.tools.ConsumerPerformance $ZOOKEEPER_OPT "$@"
+}
+
+cmd_server_start() {
+    EXTRA_ARGS="-name kafkaServer -loggc"
+
+    COMMAND=$1
+    case $COMMAND in
+      -daemon)
+        EXTRA_ARGS="-daemon "$EXTRA_ARGS
+        shift
+        ;;
+      *)
+        ;;
+    esac
+
+    # default server.properties to $KAFKA_CONFIG/server.properties
+    server_properties=${1:-"${KAFKA_CONFIG}/server.properties"}
+
+    export JMX_PORT="${JMX_PORT:-9999}"
+    export KAFKA_LOG4J_OPTS="${KAFKA_LOG4J_OPTS:--Dlog4j.configuration=file:${KAFKA_CONFIG}/log4j.properties}"
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx1G -Xms1G}"
+
+    kafka_run_class ${EXTRA_ARGS} kafka.Kafka "${server_properties}"
+}
+
+cmd_server_stop() {
+    ps ax | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}' | xargs kill -SIGTERM
+}
+
+cmd_zookeeper_start() {
+    EXTRA_ARGS="-name zookeeper -loggc"
+
+    COMMAND=$1
+    case "${COMMAND}" in
+      -daemon)
+         EXTRA_ARGS="-daemon ${EXTRA_ARGS}"
+         shift
+         ;;
+     *)
+         ;;
+    esac
+
+    # default zookeeper.properties to $KAFKA_CONFIG/zookeeper.properties
+    zookeeper_properties=${1:-"${KAFKA_CONFIG}/zookeeper.properties"}
+
+    export JMX_PORT="${JMX_PORT:-9998}"
+    export KAFKA_LOG4J_OPTS="${KAFKA_LOG4J_OPTS:--Dlog4j.configuration=file:${KAFKA_CONFIG}/log4j.properties}"
+    export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx512M -Xms512M}"
+
+    kafka_run_class ${EXTRA_ARGS} org.apache.zookeeper.server.quorum.QuorumPeerMain "${zookeeper_properties}"
+}
+
+cmd_zookeeper_stop() {
+    ps ax | grep -i 'zookeeper' | grep -v grep | awk '{print $1}' | xargs kill -SIGINT
+}
+
+cmd_zookeeper_shell() {
+    if [ -z "${ZOOKEEPER_URL}" -a $# -eq 0 ];
+    then
+        echo "USAGE: ${SCRIPT_NAME} zookeeper-shell zookeeper_host:port[/path] [args...]"
+        exit 1
+    fi
+
+    # Prefer the passed in $1 over ZOOKEEPER_URL for -server arg
+    if [ -n "$1" ];
+    then
+        ARGS="-server $@"
+    else
+        ARGS="-server ${ZOOKEEPER_URL} $@"
+    fi
+
+    kafka_run_class org.apache.zookeeper.ZooKeeperMain $ARGS
+}
+
+
+
+
+# if no commands, print usage.
+if [ $# -lt 1 ]; then
+    usage && exit 0
+fi
+
+# parse cli args
+while test $# != 0
+do
+    case "$1" in
+    topic                           | \
+    console-producer                | \
+    console-consumer                | \
+    simple-consumer-shell           | \
+    replay-log-producer             | \
+    mirror-maker                    | \
+    consumer-offset-checker         | \
+    reassign-partitions             | \
+    preferred-replica-election      | \
+    replica-verification-tool       | \
+    producer-perf-test              | \
+    consumer-perf-test              | \
+    simple-consumer-perf-test       | \
+    server-start                    | \
+    server-stop                     | \
+    zookeeper-start                 | \
+    zookeeper-stop                  | \
+    zookeeper-shell )
+        command="$1"; shift; break;
+        shift;
+        break;
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        echo "Invalid command : '$1'. Aborting." >&2
+        exit 1
+        ;;
+    esac
+done
+
+# convert dashes to underscores
+function_name=$(echo "${command}" | tr - _)
+# call the command function
+"cmd_$function_name" "$@"
