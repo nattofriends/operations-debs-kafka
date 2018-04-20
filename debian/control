@@ -1,0 +1,79 @@
+Source: kafka
+Section: misc
+Priority: optional
+Maintainer: Alexandros Kosiaris <akosiaris@wikimedia.org>
+Build-Depends: debhelper (>= 9), default-jdk, javahelper (>= 0.40),
+ scala,
+ scala-library,
+ libjackson2-databind-java,
+ liblog4j1.2-java,
+ libslf4j-java,
+ libsnappy-java,
+ libzookeeper-java
+Standards-Version: 3.9.3
+Homepage: http://kafka.apache.org
+
+Package: kafka-common
+Architecture: all
+Depends: default-jre-headless, adduser, ${java:Depends}, ${misc:Depends}
+Recommends: ${java:Recommends}
+Description: Apache Kafka is a distributed publish-subscribe messaging system
+ Apache Kafka is designed to support the following
+  * Persistent messaging with O(1) disk structures
+  that provide constant time performance even with many TB of stored messages.
+  * High-throughput: even with very modest hardware Kafka can support hundreds
+  of thousands of messages per second.
+  * Explicit support for partitioning messages over Kafka servers and
+  distributing consumption over a cluster of consumer machines while
+  maintaining per-partition ordering semantics.
+  * Support for parallel data load into Hadoop.
+ .
+ This package includes common Kafka .jar files.
+
+Package: kafka-cli
+Architecture: all
+Depends: kafka-common
+Description: Apache Kafka is a distributed publish-subscribe messaging system
+ Apache Kafka is designed to support the following
+  * Persistent messaging with O(1) disk structures
+  that provide constant time performance even with many TB of stored messages.
+  * High-throughput: even with very modest hardware Kafka can support hundreds
+  of thousands of messages per second.
+  * Explicit support for partitioning messages over Kafka servers and
+  distributing consumption over a cluster of consumer machines while
+  maintaining per-partition ordering semantics.
+  * Support for parallel data load into Hadoop.
+ .
+ This package includes a kafka shell script for easy interfacing with Kafka brokers.
+
+Package: kafka-server
+Architecture: all
+Depends: kafka-cli
+Description: Apache Kafka is a distributed publish-subscribe messaging system
+ Apache Kafka is designed to support the following
+  * Persistent messaging with O(1) disk structures
+  that provide constant time performance even with many TB of stored messages.
+  * High-throughput: even with very modest hardware Kafka can support hundreds
+  of thousands of messages per second.
+  * Explicit support for partitioning messages over Kafka servers and
+  distributing consumption over a cluster of consumer machines while
+  maintaining per-partition ordering semantics.
+  * Support for parallel data load into Hadoop.
+ .
+ This package includes the init.d script and default file for a Kafka Broker.
+
+Package: kafka-mirror
+Architecture: all
+Depends: kafka-cli
+Description: Apache Kafka is a distributed publish-subscribe messaging system
+ Apache Kafka is designed to support the following
+  * Persistent messaging with O(1) disk structures
+  that provide constant time performance even with many TB of stored messages.
+  * High-throughput: even with very modest hardware Kafka can support hundreds
+  of thousands of messages per second.
+  * Explicit support for partitioning messages over Kafka servers and
+  distributing consumption over a cluster of consumer machines while
+  maintaining per-partition ordering semantics.
+  * Support for parallel data load into Hadoop.
+ .
+ This package includes init.d script and default file for a Kafka MirrorMaker.

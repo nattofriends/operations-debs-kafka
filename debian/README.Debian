@@ -1,0 +1,103 @@
+kafka for Debian
+----------------
+This package is created using a custom build system based on Makefiles
+instead of the standard sbt/gradle build system used by upstream. The reason
+for this is to satisfy debian policy that no internet connection should
+be required during package building as well as security concers about
+the downloaded JAR files by sbt
+
+There is some support for building gradle-based projects with gradle-debian-helper,
+but we are not using it yet.
+
+How to build this package
+-------------------------
+
+This repository is be used to build the kafka package using
+git-buildpackage. Below we illustrate one of the ways this can work for
+you:
+
+* Install some mandatory packages
+
+  $ apt-get install git-buildpackage
+
+* And some not so mandatory but nice to have packages
+
+  $ apt-get install pbuilder cowbuilder
+
+Note that pbuilder/cowbuilder is not strictly required but it will save
+you from installing the dependencies manually
+
+* Create a cowbuilder environment
+
+  $ sudo DIST=stretch git-pbuilder create
+
+* Clone the repo
+
+  $ git clone https://github.com/nattofriends/kafka-debian
+  $ cd kafka-debian
+
+* Build
+
+  $ DIST=stretch gbp buildpackage
+
+* Grab your packages from the directory above the one your are in, unless
+you have configured pbuilder otherwise
+
+Build a new version
+-------------------
+
+* Should the current version in the repo not be enough, set upstream and
+  fetch
+
+  $ git remote add kafka https://github.com/apache/kafka
+  $ git fetch kafka
+
+* Tag the version you want to build against
+
+  $ git tag upstream/<VERSION> <commit-ish>
+
+<VERSION> should be a valid upstream version according to the debian
+specification:
+
+https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version
+
+<commit-sh> can be any upstream commit like git tag, branch or a single
+commit. The best result will probably be achieved with a valid git tag
+from upstream that matches the debian upstream version specs. In that
+case <VERSION> == <commit-ish>
+
+* Then update the debian branch to reflect that
+
+  $ git checkout debian # Assuming you are not there already
+  $ git merge upstream/<VERSION>
+
+* Solve any potential conflicts that might arise. A very helpful way to
+do this and avoid doing too much work is:
+
+  $ git checkout --theirs -- .
+
+This works because all of our changes are in debian/ so in any kind of
+conflict the newer version from upstream should be used
+
+You may otherwise choose to blow away our history:
+
+  $ git reset --hard upstream/<VERSION>
+  $ git checkout <OLDMASTER> -- debian/
+
+* Add a new debian/changelog entry
+
+  $ dch -i (don't forget to commit)
+  
+* Update other version numbers
+  
+  - In debian/rules
+  - In debian/kafka-common.links
+
+* Fix library dependencies
+
+  - Add or remove packaged libraries in debian/control, debian/rules,
+    and debian/bin/kafka
+  - Add or remmove bundled libraries in debian/rules, debian/kafka-common.install,
+    debian/source/include-binaries, and debian/lib
+
+* And build as above

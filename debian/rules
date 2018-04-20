@@ -1,0 +1,35 @@
+#!/usr/bin/make -f
+
+export PREFIX=/usr
+export SYSCONFDIR=/etc/kafka
+export VERSION=1.1.0
+
+# Put build dependency jars here.
+export CLASSPATH=/usr/share/java/jackson-annotations.jar:/usr/share/java/jackson-core.jar:/usr/share/java/jackson-databind.jar:/usr/share/java/log4j-1.2.jar:/usr/share/java/scala-library.jar:/usr/share/java/slf4j-api.jar:/usr/share/java/slf4j-simple.jar:/usr/share/java/snappy-java.jar:/usr/share/java/zookeeper.jar:$(CURDIR)/debian/lib/jopt-simple-5.0.3.jar:$(CURDIR)/debian/lib/lz4-1.3.0.jar:$(CURDIR)/debian/lib/metrics-core-2.2.0.jar:$(CURDIR)/debian/lib/zkclient-0.10.jar
+
+%:
+	dh $@ --with javahelper
+
+override_dh_install:
+	dh_install
+	# make install installs files into debian/tmp.
+	# These files are part of the kafka-common package.
+	cp -rv $(CURDIR)/debian/tmp/usr/share/kafka/*                $(CURDIR)/debian/kafka-common/usr/share/kafka/
+
+	# These files are part of the kafka-cli package.
+	cp -rv $(CURDIR)/debian/tmp/etc/kafka/tools-log4j.properties $(CURDIR)/debian/kafka-cli/etc/kafka/
+	cp -rv $(CURDIR)/debian/tmp/etc/kafka/log4j.properties       $(CURDIR)/debian/kafka-cli/etc/kafka/
+
+	# These files are part of the kafka-server package.
+	cp -rv $(CURDIR)/debian/tmp/etc/kafka/server.properties      $(CURDIR)/debian/kafka-server/etc/kafka/
+	cp -rv $(CURDIR)/debian/tmp/etc/kafka/zookeeper.properties   $(CURDIR)/debian/kafka-server/etc/kafka/
+
+	# These files are part of the kafka-mirror package
+	cp -rv $(CURDIR)/debian/tmp/etc/kafka/mirror                 $(CURDIR)/debian/kafka-mirror/etc/kafka/
+
+override_dh_installinit:
+	# Install kafka-server.kafka init.d and default scripts under the name 'kafka'.
+	dh_installinit --name=kafka --no-start
+
+	# Install kafka-mirror init.d and default scripts under their default name 'kafka-mirror'.
+	dh_installinit --no-start
