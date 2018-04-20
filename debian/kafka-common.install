@@ -2,3 +2,4 @@ debian/lib/jopt-simple-5.0.3.jar usr/share/kafka/lib
 debian/lib/lz4-1.3.0.jar usr/share/kafka/lib
 debian/lib/metrics-core-2.2.0.jar usr/share/kafka/lib
 debian/lib/zkclient-0.10.jar usr/share/kafka/lib
+debian/lib/scala-logging_2.11-3.8.0.jar usr/share/kafka/lib
