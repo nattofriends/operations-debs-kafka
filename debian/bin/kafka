@@ -164,7 +164,7 @@ kafka_run_class() {
 
     # Setting the classpath to all the needed dependencies.
     SYSTEM_JARS=$SYS_CLASSDIR/jackson-annotations.jar:$SYS_CLASSDIR/jackson-core.jar:$SYS_CLASSPATH/jackson-databind.jar:$SYS_CLASSDIR/log4j-1.2.jar:$SYS_CLASSDIR/scala-library.jar:$SYS_CLASSDIR/slf4j-api.jar:$SYS_CLASSDIR/slf4j-simple.jar:$SYS_CLASSDIR/snappy-java.jar:$SYS_CLASSDIR/zookeeper.jar
-    KAFKA_LIB_JARS=$KAFKA_CLASSDIR/lib/jopt-simple-5.0.3.jar:$KAFKA_CLASSDIR/lib/lz4-1.3.0.jar:$KAFKA_CLASSDIR/lib/metrics-core-2.2.0.jar:$KAFKA_CLASSDIR/lib/zkclient-0.10.jar
+    KAFKA_LIB_JARS=$KAFKA_CLASSDIR/lib/jopt-simple-5.0.3.jar:$KAFKA_CLASSDIR/lib/lz4-1.3.0.jar:$KAFKA_CLASSDIR/lib/metrics-core-2.2.0.jar:$KAFKA_CLASSDIR/lib/scala-logging_2.11-3.8.0.jar:$KAFKA_CLASSDIR/lib/zkclient-0.10.jar
     KAFKA_JARS=$KAFKA_CLASSDIR/kafka-clients.jar:$KAFKA_CLASSDIR/kafka.jar
 
     CLASSPATH=$CLASSPATH:$SYSTEM_JARS:$KAFKA_LIB_JARS:$KAFKA_JARS
